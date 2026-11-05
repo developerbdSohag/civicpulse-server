@@ -137,23 +137,25 @@ export const login = async (req: Request, res: Response): Promise<void> => {
 
 export const googleAuth = async (req: Request, res: Response): Promise<void> => {
   try {
-    const { email, name, photoURL, googleId } = req.body;
+    const { email } = req.body;
 
-    if (!email || !name) {
-      res.status(400).json({ success: false, message: 'Google account details missing.' });
+    if (!email) {
+      res.status(400).json({ success: false, message: 'Google email address is required.' });
       return;
     }
 
     const emailTrimmed = email.trim().toLowerCase();
-    let user = await User.findOne({ email: emailTrimmed });
+    const user = await User.findOne({ email: emailTrimmed });
 
+    // If user is not registered, instruct them to register first
     if (!user) {
-      user = await User.create({
-        name,
+      res.status(404).json({
+        success: false,
+        notRegistered: true,
+        message: 'This email is not registered yet. Please register with your email ID first.',
         email: emailTrimmed,
-        photoURL: photoURL || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&w=300&q=80',
-        googleId: googleId || 'google_' + Date.now(),
       });
+      return;
     }
 
     const token = jwt.sign(
@@ -169,7 +171,7 @@ export const googleAuth = async (req: Request, res: Response): Promise<void> => 
 
     res.status(200).json({
       success: true,
-      message: 'Google login successful!',
+      message: `Welcome back, ${user.name}! Signed in with Google.`,
       user: {
         id: user._id,
         name: user.name,
