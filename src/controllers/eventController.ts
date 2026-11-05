@@ -267,7 +267,8 @@ export const getMyCreatedEvents = async (req: AuthRequest, res: Response): Promi
       return;
     }
 
-    const events = await Event.find({ creatorEmail: req.user.email.toLowerCase() }).sort({ createdAt: -1 });
+    // Sort date-wise: earliest upcoming date first (first date first come)
+    const events = await Event.find({ creatorEmail: req.user.email.toLowerCase() }).sort({ eventDate: 1 });
 
     res.status(200).json({
       success: true,
