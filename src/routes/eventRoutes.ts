@@ -13,6 +13,7 @@ const router = Router();
 
 // Public routes
 router.get('/', getUpcomingEvents);
+router.get('/upcoming', getUpcomingEvents);
 
 // Protected routes (place /manage/my-events BEFORE /:id so it doesn't get treated as an ID param)
 router.get('/manage/my-events', authenticateToken, getMyCreatedEvents);
