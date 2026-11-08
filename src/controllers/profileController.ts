@@ -12,10 +12,18 @@ export const getProfile = async (req: AuthRequest, res: Response): Promise<void>
       return;
     }
 
-    const user = await User.findById(req.user.id).select('-password');
+    let user = await User.findById(req.user.id).select('-password');
+    if (!user && req.user.email) {
+      user = await User.findOne({ email: req.user.email.toLowerCase() }).select('-password');
+    }
+
     if (!user) {
-      res.status(404).json({ success: false, message: 'User not found.' });
-      return;
+      // Auto-create volunteer profile from auth token
+      user = await User.create({
+        name: req.user.name || req.user.email.split('@')[0],
+        email: req.user.email.toLowerCase(),
+        photoURL: req.user.photoURL || `https://api.dicebear.com/7.x/initials/svg?seed=${encodeURIComponent(req.user.name || req.user.email)}`,
+      });
     }
 
     const createdCount = await Event.countDocuments({ creatorEmail: user.email.toLowerCase() });
@@ -45,10 +53,21 @@ export const updateProfile = async (req: AuthRequest, res: Response): Promise<vo
 
     const { name, photoURL, bio, phone, location } = req.body;
 
-    const user = await User.findById(req.user.id);
+    let user = await User.findById(req.user.id);
+    if (!user && req.user.email) {
+      user = await User.findOne({ email: req.user.email.toLowerCase() });
+    }
+
     if (!user) {
-      res.status(404).json({ success: false, message: 'User not found.' });
-      return;
+      // Auto-create volunteer profile and apply updates
+      user = new User({
+        name: name || req.user.name || req.user.email.split('@')[0],
+        email: req.user.email.toLowerCase(),
+        photoURL: photoURL || req.user.photoURL || `https://api.dicebear.com/7.x/initials/svg?seed=${encodeURIComponent(req.user.name || req.user.email)}`,
+        bio: bio || '',
+        phone: phone || '',
+        location: location || '',
+      });
     }
 
     if (name && name.trim() !== '') user.name = name.trim();
