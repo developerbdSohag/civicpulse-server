@@ -1,4 +1,5 @@
 import { Response } from 'express';
+import bcrypt from 'bcryptjs';
 import User from '../models/User';
 import Event from '../models/Event';
 import RSVP from '../models/RSVP';
@@ -117,5 +118,59 @@ export const updateProfile = async (req: AuthRequest, res: Response): Promise<vo
   } catch (err: any) {
     console.error('Error updating profile:', err);
     res.status(500).json({ success: false, message: 'Error updating profile.' });
+  }
+};
+
+// POST /api/profile/change-password
+export const changePassword = async (req: AuthRequest, res: Response): Promise<void> => {
+  try {
+    if (!req.user) {
+      res.status(401).json({ success: false, message: 'Authentication required.' });
+      return;
+    }
+
+    const { currentPassword, newPassword } = req.body;
+
+    if (!newPassword || newPassword.length < 6) {
+      res.status(400).json({ success: false, message: 'New password must be at least 6 characters long.' });
+      return;
+    }
+    if (!/[A-Z]/.test(newPassword)) {
+      res.status(400).json({ success: false, message: 'New password must contain at least one uppercase letter.' });
+      return;
+    }
+    if (!/[a-z]/.test(newPassword)) {
+      res.status(400).json({ success: false, message: 'New password must contain at least one lowercase letter.' });
+      return;
+    }
+
+    let user = await User.findById(req.user.id);
+    if (!user && req.user.email) {
+      user = await User.findOne({ email: req.user.email.toLowerCase() });
+    }
+
+    if (!user) {
+      res.status(404).json({ success: false, message: 'User account not found.' });
+      return;
+    }
+
+    if (user.password && currentPassword) {
+      const isMatch = await bcrypt.compare(currentPassword, user.password);
+      if (!isMatch) {
+        res.status(400).json({ success: false, message: 'Current password does not match.' });
+        return;
+      }
+    }
+
+    user.password = await bcrypt.hash(newPassword, 10);
+    await user.save();
+
+    res.status(200).json({
+      success: true,
+      message: 'Password changed successfully! Please log in with your new password.',
+    });
+  } catch (err: any) {
+    console.error('Error changing password:', err);
+    res.status(500).json({ success: false, message: 'Error updating password.' });
   }
 };
